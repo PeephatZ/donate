@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donation System</title>
+</head>
+<body>
+    <h1>ระบบรับข้อความบริจาค</h1>
+    
+    <!-- QR Code ให้ผู้บริจาคโอนเงิน -->
+    <img src="promptpay-qrcode.png" alt="PromptPay QR Code" width="200">
+
+    <!-- หลังจากโอนเงินแล้วให้ผู้บริจาคกรอกชื่อและข้อความ -->
+    <div id="donationFormWrapper" style="display:none;">
+        <form id="donationForm">
+            <label for="name">ชื่อ:</label>
+            <input type="text" id="name" name="name" required>
+            <label for="message">ข้อความ:</label>
+            <textarea id="message" name="message" required></textarea>
+            <button type="submit">ส่งข้อความ</button>
+        </form>
+    </div>
+
+    <h2>ข้อความจากผู้บริจาค:</h2>
+    <div id="messageDisplay"></div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
+        import { getDatabase, ref, push, onValue } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js';
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAQsswH0CP_9SzxpElrQ2EfoGGHfZhitPQ",
+            authDomain: "donation-system-995fc.firebaseapp.com",
+            databaseURL: "https://donation-system-995fc-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "donation-system-995fc",
+            storageBucket: "donation-system-995fc.firebasestorage.app",
+            messagingSenderId: "837045403340",
+            appId: "1:837045403340:web:2934ed4705a9d64dda0c69",
+            measurementId: "G-5BNEFBWM7C"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // ฟังก์ชันตรวจสอบการโอนเงินจาก OpenSlipVerify API
+        function checkPaymentStatus(refNbr, amount) {
+            const token = '2da88524-8ba0-4c3b-8cd7-ve7d8es3688a'; // ใช้ token ที่ได้จาก OpenSlipVerify
+
+            fetch('https://api.openslipverify.com/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    refNbr: refNbr,
+                    amount: amount, // จำนวนเงินสามารถไม่จำกัดได้
+                    token: token,
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data); // ดูข้อมูลที่ได้จาก API เพื่อตรวจสอบ
+                if (data.success && data.statusMessage === 'SUCCESS') { // เช็คว่าการโอนสำเร็จและจำนวนเงินถูกต้อง
+                    document.getElementById('donationFormWrapper').style.display = 'block';  // แสดงฟอร์มให้กรอกข้อความ
+                    alert('การโอนเงินสำเร็จ จำนวนเงินถูกต้อง!');
+                } else {
+                    alert('การโอนเงินไม่สำเร็จหรือจำนวนเงินไม่ถูกต้อง');
+                }
+            })
+            .catch(error => {
+                alert('เกิดข้อผิดพลาดในการตรวจสอบการโอนเงิน');
+                console.error('Error:', error);
+            });
+        }
+
+        // ตัวอย่างรหัสที่ได้รับจากการ Scan QR
+        const refNbr = "00390006000001010301102182023102912011503035102TH91047E8E"; // รหัสที่ได้จากการ Scan QR
+        const amount = "100"; // จำนวนเงินที่ต้องการตรวจสอบ
+
+        // ตรวจสอบสถานะการโอนเงิน
+        checkPaymentStatus(refNbr, amount);
+
+        // Handle form submission
+        const form = document.getElementById('donationForm');
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value;
+            const message = document.getElementById('message').value;
+
+            // Save to Firebase
+            const donationRef = ref(db, 'donations');
+            push(donationRef, { name, message }).then(() => {
+                alert('ข้อความของคุณถูกส่งเรียบร้อยแล้ว!');
+                form.reset();
+            });
+        });
+
+        // Display messages in real-time
+        const messagesRef = ref(db, 'donations');
+        onValue(messagesRef, (snapshot) => {
+            const messages = snapshot.val();
+            const display = document.getElementById('messageDisplay');
+            display.innerHTML = ''; // ล้างข้อความเก่า
+            if (messages) {
+                Object.values(messages).forEach((msg) => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.textContent = `${msg.name}: ${msg.message}`;
+                    display.appendChild(messageDiv);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
