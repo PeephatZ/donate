@@ -1,118 +1,142 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Donation System</title>
-</head>
-<body>
-    <h1>ระบบรับข้อความบริจาค</h1>
-    
-    <!-- QR Code ให้ผู้บริจาคโอนเงิน -->
-    <img src="promptpay-qrcode.png" alt="PromptPay QR Code" width="200">
-
-    <!-- หลังจากโอนเงินแล้วให้ผู้บริจาคกรอกชื่อและข้อความ -->
-    <div id="donationFormWrapper" style="display:none;">
-        <form id="donationForm">
-            <label for="name">ชื่อ:</label>
-            <input type="text" id="name" name="name" required>
-            <label for="message">ข้อความ:</label>
-            <textarea id="message" name="message" required></textarea>
-            <button type="submit">ส่งข้อความ</button>
-        </form>
-    </div>
-
-    <h2>ข้อความจากผู้บริจาค:</h2>
-    <div id="messageDisplay"></div>
-
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js';
-        import { getDatabase, ref, push, onValue } from 'https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js';
-
-        // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyAQsswH0CP_9SzxpElrQ2EfoGGHfZhitPQ",
-            authDomain: "donation-system-995fc.firebaseapp.com",
-            databaseURL: "https://donation-system-995fc-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "donation-system-995fc",
-            storageBucket: "donation-system-995fc.firebasestorage.app",
-            messagingSenderId: "837045403340",
-            appId: "1:837045403340:web:2934ed4705a9d64dda0c69",
-            measurementId: "G-5BNEFBWM7C"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
-        // ฟังก์ชันตรวจสอบการโอนเงินจาก OpenSlipVerify API
-        function checkPaymentStatus(refNbr, amount) {
-            const token = '2da88524-8ba0-4c3b-8cd7-ve7d8es3688a'; // ใช้ token ที่ได้จาก OpenSlipVerify
-
-            fetch('https://api.openslipverify.com/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    refNbr: refNbr,
-                    amount: amount, // จำนวนเงินสามารถไม่จำกัดได้
-                    token: token,
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log(data); // ดูข้อมูลที่ได้จาก API เพื่อตรวจสอบ
-                if (data.success && data.statusMessage === 'SUCCESS') { // เช็คว่าการโอนสำเร็จและจำนวนเงินถูกต้อง
-                    document.getElementById('donationFormWrapper').style.display = 'block';  // แสดงฟอร์มให้กรอกข้อความ
-                    alert('การโอนเงินสำเร็จ จำนวนเงินถูกต้อง!');
-                } else {
-                    alert('การโอนเงินไม่สำเร็จหรือจำนวนเงินไม่ถูกต้อง');
-                }
-            })
-            .catch(error => {
-                alert('เกิดข้อผิดพลาดในการตรวจสอบการโอนเงิน');
-                console.error('Error:', error);
-            });
+    <title>วงชาโดว์ (Shadow) - วิวัฒนาการดนตรี</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #f0f4f8;
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
         }
 
-        // ตัวอย่างรหัสที่ได้รับจากการ Scan QR
-        const refNbr = "00390006000001010301102182023102912011503035102TH91047E8E"; // รหัสที่ได้จากการ Scan QR
-        const amount = "100"; // จำนวนเงินที่ต้องการตรวจสอบ
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+            position: relative;
+        }
 
-        // ตรวจสอบสถานะการโอนเงิน
-        checkPaymentStatus(refNbr, amount);
+        .slide {
+            display: none;
+            animation: fadeIn 0.6s ease-in-out;
+        }
 
-        // Handle form submission
-        const form = document.getElementById('donationForm');
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const name = document.getElementById('name').value;
-            const message = document.getElementById('message').value;
+        .slide.active {
+            display: block;
+        }
 
-            // Save to Firebase
-            const donationRef = ref(db, 'donations');
-            push(donationRef, { name, message }).then(() => {
-                alert('ข้อความของคุณถูกส่งเรียบร้อยแล้ว!');
-                form.reset();
-            });
-        });
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1.5rem;
+        }
 
-        // Display messages in real-time
-        const messagesRef = ref(db, 'donations');
-        onValue(messagesRef, (snapshot) => {
-            const messages = snapshot.val();
-            const display = document.getElementById('messageDisplay');
-            display.innerHTML = ''; // ล้างข้อความเก่า
-            if (messages) {
-                Object.values(messages).forEach((msg) => {
-                    const messageDiv = document.createElement('div');
-                    messageDiv.textContent = `${msg.name}: ${msg.message}`;
-                    display.appendChild(messageDiv);
-                });
+        .nav-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .nav-button:hover {
+            background: #0056b3;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
             }
-        });
+            to {
+                opacity: 1;
+            }
+        }
+
+        h1, h2, p {
+            text-align: center;
+        }
+
+        /* เพิ่มการจัดตำแหน่งให้ดูดีขึ้น */
+        iframe {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="presentation">
+            <div id="slide1" class="slide active">
+                <h1 class="text-4xl font-bold mb-4">วงชาโดว์ (Shadow)</h1>
+                <h2 class="text-2xl">วิวัฒนาการดนตรีแห่งยุคสมัย</h2>
+            </div>
+
+            <div id="slide2" class="slide">
+                <h2 class="text-3xl font-semibold mb-4">ยุคแรก: บลูส์ คันทรี โฟล์ค</h2>
+                <ul class="list-disc pl-6 text-lg space-y-2">
+                    <li>วงดนตรีขนาดเล็ก เคลื่อนย้ายสะดวก</li>
+                    <li>เน้นเพลงแนวบลูส์และคันทรี</li>
+                    <li>เครื่องดนตรีหลัก: กีต้าร์ 3 ประเภท</li>
+                </ul>
+            </div>
+
+            <div id="slide3" class="slide">
+                <h2 class="text-3xl font-semibold mb-4">ยุคที่สอง: คลาสสิคร็อค</h2>
+                <p class="text-lg mb-4">ช่วง พ.ศ. 2503-2515</p>
+                <ul class="list-disc pl-6 text-lg space-y-2">
+                    <li>ต้นฉบับวงร็อครุ่นแรกของไทย</li>
+                    <li>ได้รับอิทธิพลจากวงตะวันตก</li>
+                    <li>เป็นแรงบันดาลใจให้วงดนตรีรุ่นหลัง</li>
+                </ul>
+            </div>
+
+            <div id="slide4" class="slide">
+                <h2 class="text-3xl font-semibold mb-4">วีดีโอตัวอย่าง</h2>
+                <div class="flex justify-center">
+                    <iframe src="https://www.youtube.com/embed/M6DfG7sml-Q" title="YouTube video player" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                </div>
+            </div>
+
+            <div class="navigation">
+                <button onclick="prevSlide()" class="nav-button">ก่อนหน้า</button>
+                <button onclick="nextSlide()" class="nav-button">ถัดไป</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+
+        function showSlide(index) {
+            slides.forEach(slide => slide.classList.remove('active'));
+            slides[index].classList.add('active');
+        }
+
+        function nextSlide() {
+            currentSlide = (currentSlide + 1) % slides.length;
+            showSlide(currentSlide);
+        }
+
+        function prevSlide() {
+            currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+            showSlide(currentSlide);
+        }
     </script>
 </body>
 </html>
